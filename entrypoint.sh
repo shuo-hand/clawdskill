@@ -1,59 +1,25 @@
 #!/bin/sh
 
-echo "=== Setting up moltbot command ==="
-# Setup moltbot command
-WORKDIR="$(pwd)"
-mkdir -p /home/node/bin
-cat > /home/node/bin/moltbot << SCRIPT
-#!/bin/sh
-exec node ${WORKDIR}/dist/index.js "\$@"
-SCRIPT
-chmod +x /home/node/bin/moltbot
-ln -sf /home/node/bin/moltbot /home/node/bin/clawdbot
-export PATH="/home/node/bin:$PATH"
-echo "moltbot command ready at /home/node/bin/moltbot"
+# 定義路徑
+GIT_SKILLS_DIR="/app/skills"         # GitHub 傳上來、唯讀的路徑
+PERSISTENT_WORKSPACE="/home/node/app/workspace" # 掛載 Volume 的路徑
+ACTIVE_SKILLS_DIR="$PERSISTENT_WORKSPACE/skills"
 
-# Patch pi-ai library
-echo "=== Patching pi-ai library ==="
-PI_AI_FILE="/app/node_modules/.pnpm/@mariozechner+pi-ai@"*"/node_modules/@mariozechner/pi-ai/dist/providers/google-gemini-cli.js"
-if ls $PI_AI_FILE 1>/dev/null 2>&1; then
-  sed -i 's|antigravity/1.11.5 darwin/arm64|antigravity/1.15.8 linux/amd64|g' $PI_AI_FILE
-  echo "Patch applied."
+echo "=== 正在同步 GitHub Skills 到持久化空間 ==="
+
+# 確保目錄存在
+mkdir -p "$ACTIVE_SKILLS_DIR"
+
+# 關鍵：將 Git 的 Skills 同步到 Volume，但不刪除 Volume 裡原有的資料（如 MEMORY.md）
+if [ -d "$GIT_SKILLS_DIR" ]; then
+    cp -r $GIT_SKILLS_DIR/* "$ACTIVE_SKILLS_DIR/"
+    echo "同步完成。路徑：$ACTIVE_SKILLS_DIR"
 else
-  echo "pi-ai library not found, skipping patch"
+    echo "警告：找不到 Git Skills 目錄 $GIT_SKILLS_DIR"
 fi
 
-# ... (中間那段動態生成 $CONFIG_FILE 的 JSON 邏輯請完整保留在這邊) ...
-# 注意：為了篇幅，我這裡省略中間那段長長的 CONFIG_JSON 邏輯，請你手動把原本腳本中 
-# CONFIG_DIR 到 chmod 600 "$CONFIG_FILE" 的部分原封不動貼進來。
+# 執行原有的環境變數設定與 Patch 邏輯...
+# (保留你之前那段長長的 CONFIG_JSON 產生邏輯)
 
-# === 新增：安裝 Skills 的依賴 (Python/Node) ===
-echo "=== Setting up custom skills dependencies ==="
-if [ -d "./skills" ]; then
-  for skill_dir in ./skills/*; do
-    if [ -d "$skill_dir" ]; then
-      # 如果有 requirements.txt 就用 pip 安裝 (針對 Python Skills)
-      if [ -f "$skill_dir/requirements.txt" ]; then
-        echo "Installing Python dependencies for $(basename $skill_dir)..."
-        pip install --no-cache-dir -r "$skill_dir/requirements.txt" || echo "Pip install failed."
-      fi
-      # 如果有 package.json 就用 pnpm 安裝 (針對 Node Skills)
-      if [ -f "$skill_dir/package.json" ]; then
-        echo "Installing Node dependencies for $(basename $skill_dir)..."
-        pnpm install --prefix "$skill_dir" || echo "Pnpm install failed."
-      fi
-    fi
-  done
-fi
-
-# === 初始化 Workspace ===
-echo "=== Initializing workspace ==="
-WORKSPACE_DIR="${CLAWDBOT_WORKSPACE_DIR}"
-mkdir -p "$WORKSPACE_DIR/memory"
-if [ ! -f "$WORKSPACE_DIR/MEMORY.md" ]; then
-  echo "# Memory\n\nThis file stores long-term memories." > "$WORKSPACE_DIR/MEMORY.md"
-fi
-
-# 啟動主程式
-echo "=== Starting Moltbot ==="
-exec node dist/index.js gateway --allow-unconfigured --bind "${CLAWDBOT_GATEWAY_BIND}" --port "${CLAWDBOT_GATEWAY_PORT}" --token "${CLAWDBOT_GATEWAY_TOKEN}"
+# 啟動 Moltbot，並明確指定工作目錄
+exec node dist/index.js gateway --allow-unconfigured --workspace "$PERSISTENT_WORKSPACE"

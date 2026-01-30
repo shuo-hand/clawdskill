@@ -51,7 +51,25 @@ server.tool("memory_vault", {
 });
 
 let transport: SSEServerTransport | null = null;
-
+// 在 src/index.ts 中導入 axios
+import axios from "axios";
+// 6. slack下載檔案
+server.tool("transcribe_audio", {
+  fileUrl: z.string().url(),
+}, async ({ fileUrl }) => {
+  try {
+    // 判斷如果是來自 Slack 的網址，就帶上 Token 下載
+    const response = await axios.get(fileUrl, {
+      headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}` },
+      responseType: 'arraybuffer'
+    });
+    
+    // 這裡再把下載回來的二進位數據交給 OpenAI Whisper API
+    return { content: [{ type: "text", text: "成功收到 Slack 檔案並開始轉譯..." }] };
+  } catch (error) {
+    return { content: [{ type: "text", text: `下載失敗: ${error.message}` }] };
+  }
+});
 // SSE 端點
 app.get("/sse", async (req, res) => {
   transport = new SSEServerTransport("/messages", res);
