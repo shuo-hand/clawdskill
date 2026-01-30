@@ -2,84 +2,72 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import express from "express";
 import { z } from "zod";
-
 const app = express();
+// 解析 JSON Body，MCP 訊息需要這個
+app.use(express.json());
+
 const server = new McpServer({
   name: "Moltbot-Custom-Skills",
   version: "1.0.0",
 });
 
-/**
- * 1. Google Workspace 串接
- */
+// 1. Google Workspace
 server.tool("google_workspace", {
   action: z.enum(["search_drive", "send_gmail", "list_calendar"]),
   query: z.string(),
 }, async ({ action, query }) => {
-  // 這裡實作 gog 或 Google SDK 邏輯
-  return { content: [{ type: "text", text: `Google Workspace ${action} 執行成功：${query}` }] };
+  return { content: [{ type: "text", text: `Google Workspace ${action} 執行：${query}` }] };
 });
 
-/**
- * 2. 理解語音訊息 (Whisper)
- */
+// 2. 語音
 server.tool("transcribe_audio", {
   fileUrl: z.string().url(),
 }, async ({ fileUrl }) => {
-  // 這裡實作下載音檔並調用 OpenAI Whisper API
-  return { content: [{ type: "text", text: "語音轉文字結果：[模擬文字內容]" }] };
+  return { content: [{ type: "text", text: "語音轉文字模擬結果" }] };
 });
 
-/**
- * 3. 閱讀影片內容
- */
+// 3. 影片
 server.tool("analyze_video", {
   videoUrl: z.string().url(),
   question: z.string(),
 }, async ({ videoUrl, question }) => {
-  // 這裡實作抽幀並交給多模態模型 (如 Gemini 1.5 Pro)
-  return { content: [{ type: "text", text: `影片分析結果：針對「${question}」，影片顯示...` }] };
+  return { content: [{ type: "text", text: `影片分析模擬結果: ${question}` }] };
 });
 
-/**
- * 4. Notion 連結
- */
+// 4. Notion
 server.tool("notion_manager", {
   operation: z.enum(["create_page", "search_docs"]),
   content: z.string(),
 }, async ({ operation, content }) => {
-  // 這裡實作 Notion SDK
-  return { content: [{ type: "text", text: `Notion ${operation} 已完成` }] };
+  return { content: [{ type: "text", text: `Notion ${operation} 已模擬執行` }] };
 });
 
-/**
- * 5. Pinecone 長期記憶
- */
+// 5. Pinecone
 server.tool("memory_vault", {
   action: z.enum(["store", "query"]),
   text: z.string(),
 }, async ({ action, text }) => {
-  // 這裡實作 Pinecone 向量檢索
-  return { content: [{ type: "text", text: `已從 Pinecone 記憶庫 ${action}: ${text}` }] };
+  return { content: [{ type: "text", text: `Pinecone ${action} 已模擬執行` }] };
 });
 
-// 設定 SSE 傳輸
 let transport: SSEServerTransport | null = null;
 
+// SSE 端點
 app.get("/sse", async (req, res) => {
   transport = new SSEServerTransport("/messages", res);
   await server.connect(transport);
 });
 
+// 訊息接收端點
 app.post("/messages", async (req, res) => {
   if (transport) {
     await transport.handlePostMessage(req, res);
   } else {
-    res.status(400).send("No active SSE connection");
+    res.status(400).send("SSE transport not initialized");
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`MCP Skills Server running on port ${PORT}`);
+app.listen(Number(PORT), "0.0.0.0", () => {
+  console.log(`MCP Server 正在 0.0.0.0:${PORT} 運行`);
 });
