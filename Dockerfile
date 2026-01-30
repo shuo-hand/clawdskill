@@ -1,26 +1,29 @@
 FROM node:20-slim
 
-# 安裝系統依賴：ffmpeg (必備), python (為了某些 Skills), git
+# 安裝系統依賴：ffmpeg (處理影音), python (備用)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
     python3-pip \
+    curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 安裝 pnpm
-RUN npm install -g pnpm
+# 安裝依賴
+COPY package.json ./
+RUN npm install
 
-# 複製專案檔案
+# 複製程式碼並編譯
 COPY . .
+RUN npx tsc
 
-# 安裝主程式依賴
-RUN pnpm install
+# 設定環境變數
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# 賦予啟動腳本權限
-RUN chmod +x entrypoint.sh
+# 開放端口
+EXPOSE 3000
 
-# 執行你剛寫的那個啟動指令
-CMD ["./entrypoint.sh"]
+CMD ["node", "dist/index.js"]
