@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "gogcli": {
+      "version": "1.0.0",
+      "installedAt": 1769766110944
+    },
+    "openai-whisper-api": {
+      "version": "1.0.0",
+      "installedAt": 1769766224968
+    },
+    "serpapi": {
+      "version": "1.0.0",
+      "installedAt": 1769766269336
+    }
+  }
+}
